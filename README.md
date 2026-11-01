@@ -1,51 +1,56 @@
-🍪 Pechenika AI — Autonomous YOLOv8 Clicker Bot
+# Cookie clicker detector
 
-Python YOLOv8 OpenCV Status
+Windows clicker using `weights/best.onnx`. The model has exactly three classes:
+`game`, `ads_close`, `upgrade` (IDs 0, 1, 2). An ad close button has priority,
+then an available upgrade, then the main cookie. The model sometimes labels a
+whole side banner as `ads_close`; the app only clicks small close-button boxes.
+Some modal close buttons are emitted as `upgrade`; when the overlay hides the
+cookie, those small boxes are handled as ad close buttons before shop checks.
+For Yandex's white modal ad card, the app also finds the grey round `×` button
+directly in the screenshot, so closing still works when ONNX returns no boxes.
+Before buying, the app checks the shop's price state in the screenshot: green
+prices are affordable, red prices are skipped. It randomly picks one affordable
+row and keeps farming when none is available. The pixel check follows the
+default Cookie Clicker Old shop colors shown in the local screenshots.
 
-Интеллектуальная система автоматизации для игры Cookie Clicker, построенная на базе сверточной нейросетевой архитектуры YOLOv8. Бот в режиме реального времени анализирует поток кадров с экрана, находит целевые объекты и управляет игровым процессом.
+## Run
 
-⚡ Ключевые возможности
+Install Python 3.12, then in PowerShell:
 
-- 🎯 Детекция объектов в реальном времени: Мгновенный поиск печенек, бонусов и золотых элементов.
-- 
-- 🚀 Оптимизированный инференс: Поддержка форматирования модели в ONNX для минимальной задержки (low latency).
-- 
-- 🔄 Автоматическая аугментация: Встроенный скрипт расширения датасета для повышения точности модели.
-- 
-- 💻 Кроссплатформенность: Полная адаптация под работу на Windows и Linux.
-- 
-🛠 Технологический стек
+```
+в app.py на 158 строке сделать
+return pyautogui.keyDown("space")
 
-Компонент	Технология	Назначение
 
-Core Engine	Python 3.10+	Основная логика приложения
+python3 -m venv venv
+source venv/bin/activate
+pip install opencv-python
+pip install pyautogui
+pip install mss
+pip install onnxruntime
+python app.py
 
-Computer Vision	YOLOv8 (ultralytics)	Детекция и классификация объектов
+```
 
-Frame Processing	OpenCV (opencv-python)	Захват и предобработка кадров
+**Space** pauses or resumes. **Ctrl+C** exits. Moving the mouse to a screen
+corner activates PyAutoGUI's fail-safe. Use `--monitor 0` for all displays or
+`--monitor 1` (default) for the first display. The app fails with a clear error
+if the ONNX model is missing or has the wrong classes.
 
-OS Automation	PyAutoGUI / MSS	Эмуляция пользовательского ввода (клики)
+## Retrain locally
 
-Model Runtime	ONNX Runtime	Ускоренное выполнение нейросети
+Training images and YOLO labels stay outside Git. Store matching pairs under
+`images/{train,val}` and `labels/{train,val}` using IDs from `data.yaml`.
+`prepare_dataset.ps1` rebuilds a group-aware 80/20 split while preserving
+unpaired files in `dataset_unmatched`.
 
-📂 Структура репозитория
-Pechenika_ai/
-├── 📄 app.py                 # Главный исполняемый модуль бота
-├── 📄 augment.py             # Модуль аугментации обучающей выборки
-├── 📄 ptToOnnx.py            # Конвертер весов PyTorch (.pt) ➔ ONNX (.onnx)
-├── ⚙️ data.yaml              # Конфигурационный файл датасета
-├── ⚙️ config.yaml            # Настройки порогов уверенности (confidence)
-├── 🧠 best.pt                # Обученные веса модели (PyTorch)
-├── 🧠 best.onnx              # Оптимизированная модель (ONNX)
-├── 🖼️ images/                # Выборка изображений (train/val)
-├── 🏷️ labels/                # Разметка объектов в формате YOLO
-├── 📊 runs/                  # Метрики и графики процесса обучения
-└── 📦 weights/               # Сохранённые чекпоинты
-🚀 Быстрый старт
-1. Клонирование и подготовка
-2. Установка зависимостей: pip install ultralytics opencv-python pyautogui numpy mss onnxruntim
-3. Запуск бота: python app.py
-4. 🔧 Дополнительные скрипты (Аугментация датасета) - python augment.py
-5. Экспорт модели в ONNX:python ptToOnnx.py
+```powershell
+.venv\Scripts\python -m pip install -r requirements-train.txt
+./prepare_dataset.ps1
+.venv\Scripts\python validate_data.py
+.venv\Scripts\python train.py --epochs 100
+```
 
-   
+The training script exports its best checkpoint to `weights/best.onnx`. Only
+this deployment model is tracked in Git; local datasets, training runs, and
+Python environments are ignored.
